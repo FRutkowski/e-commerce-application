@@ -1,0 +1,14 @@
+{
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    },
+  },
+  "autoDocstring.docstringFormat": "numpy",
+  "isort.args": [
+    "--profile",
+    "mikoz.black-py"
+  ],
+}

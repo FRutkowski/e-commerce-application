@@ -11,4 +11,10 @@
     "--profile",
     "mikoz.black-py"
   ],
+  "python.testing.pytestArgs": [
+    "."
+  ],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true,
+  "editor.tabSize": 4
 }

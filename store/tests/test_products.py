@@ -28,6 +28,26 @@ def create_product_object():
     return product
 
 
+@pytest.fixture
+def update_product(api_client):
+    def do_update_product(product_id, product, method="PUT"):
+        return (
+            api_client.patch(f"/store/products/{product_id}/", product)
+            if method == "PATCH"
+            else api_client.put(f"/store/products/{product_id}/", product)
+        )
+
+    return do_update_product
+
+
+@pytest.fixture
+def delete_product(api_client):
+    def do_delete_product(product_id):
+        return api_client.delete(f"/store/products/{product_id}/")
+
+    return do_delete_product
+
+
 @pytest.mark.django_db
 class TestCreateProduct:
     def test_if_user_is_anonymous_returns_401(self, create_product):
@@ -65,9 +85,6 @@ class TestRetrieveProduct:
 
         response = api_client.get(f"/store/products/{product.id}/")
 
-        # tworzenie dziesiec rekordów z przypisaną kolekcją, gdybym jej nie przypisał to by powstało po prostu 10 rekordów z losowymi kolekcjami
-        # baker.make(Product, collection=collection, _quantity=10)
-
         assert response.status_code == status.HTTP_200_OK
         assert response.data == {
             "id": product.id,
@@ -86,8 +103,98 @@ class TestRetrieveProduct:
 
         response = api_client.get(f"/store/products/")
 
-        # tworzenie dziesiec rekordów z przypisaną kolekcją, gdybym jej nie przypisał to by powstało po prostu 10 rekordów z losowymi kolekcjami
-        # baker.make(Product, collection=collection, _quantity=10)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 10
+
+
+@pytest.mark.django_db
+class TestUpdateProduct:
+    def test_if_user_is_anonymous_for_put_request_returns_401(self, update_product):
+        response = update_product(1, {})
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_if_user_is_not_admin_for_put_request_returns_403(
+        self, update_product, authenticate
+    ):
+        authenticate()
+        response = update_product(1, {})
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_if_data_is_invalid_for_put_request_returns_400(
+        self, update_product, authenticate
+    ):
+        authenticate(is_staff=True)
+        product = baker.make(Product)
+        response = update_product(product.id, {})
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_if_data_is_valid_for_put_request_returns_200(
+        self, update_product, authenticate
+    ):
+        product_object = create_product_object()
+        authenticate(is_staff=True)
+        product = baker.make(Product)
+        response = update_product(product.id, product_object)
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["count"] == 10
+
+    def test_if_user_is_anonymous_for_patch_request_returns_401(self, update_product):
+        response = update_product(1, {}, "PATCH")
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_if_user_is_not_admin_for_patch_request_returns_403(
+        self, update_product, authenticate
+    ):
+        authenticate()
+        response = update_product(1, {}, "PATCH")
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_if_data_is_invalid_for_patch_request_returns_200(
+        self, update_product, authenticate
+    ):
+        authenticate(is_staff=True)
+        product = baker.make(Product)
+        response = update_product(product.id, {"a": "a"}, "PATCH")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert not "a" in response.data.keys()
+
+    def test_if_data_is_valid_for_patch_request_returns_200(
+        self, update_product, authenticate
+    ):
+        authenticate(is_staff=True)
+        product = baker.make(Product)
+        response = update_product(product.id, {"title": "a"}, "PATCH")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["title"] == "a"
+
+
+@pytest.mark.django_db
+class TestDeleteProduct:
+    def test_if_user_is_anonymous_returns_401(self, delete_product):
+        response = delete_product(1)
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_if_user_is_not_admin_returns_403(self, delete_product, authenticate):
+        authenticate()
+        response = delete_product(1)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_if_id_is_invalid_returns_400(self, delete_product, authenticate):
+        authenticate(is_staff=True)
+        response = delete_product(1)
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_if_id_is_valid_returns_400(self, delete_product, authenticate):
+        authenticate(is_staff=True)
+        product = baker.make(Product)
+        response = delete_product(product.id)
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT

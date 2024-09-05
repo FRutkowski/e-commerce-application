@@ -85,6 +85,7 @@ class CollectionViewSet(ModelViewSet):
     queryset = Collection.objects.annotate(products_count=Count("products")).all()
     serializer_class = CollectionSerializer
     permission_classes = [IsAdminOrReadOnly]
+    pagination_class = DefaultPagination
 
     def destroy(self, request, *args, **kwargs):
         if Product.objects.filter(collection_id=kwargs["pk"]):
